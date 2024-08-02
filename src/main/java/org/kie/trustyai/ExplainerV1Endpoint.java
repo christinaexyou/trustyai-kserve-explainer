@@ -62,7 +62,7 @@ public class ExplainerV1Endpoint {
         final Prediction prediction = new SimplePrediction(input.get(0), output);
         final int dimensions = input.get(0).getFeatures().size();
 
-        if (configService.getExplainerType() == ExplainerType.SHAP) {
+        if (configService.getExplainerType() == ExplainerType.SHAP || configService.getExplainerType() == ExplainerType.BOTH)  {
             if (Objects.isNull(streamingGeneratorManager.getStreamingGenerator())) {
                 Log.info("Initializing SHAP's Streaming Background Generator with dimension " + dimensions);
                 streamingGeneratorManager.initialize(dimensions);

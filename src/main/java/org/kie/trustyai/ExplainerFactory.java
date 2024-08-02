@@ -44,7 +44,26 @@ public class ExplainerFactory {
                 Log.info("Instantiating SHAP explainer");
                 yield new ShapKernelExplainer(shapConfig);
             }
-            default -> throw new IllegalArgumentException("Unsupported explainer type: " + type);
+            // default return both LIME and SHAP
+            default -> {
+                final LimeConfig limeConfig = new LimeConfig()
+                        .withNormalizeWeights(configService.getLimeNormalizeWeights())
+                        .withSamples(configService.getLimeSamples())
+                        .withRetries(configService.getLimeRetries())
+                        .withUseWLRLinearModel(configService.getLimeWLR());
+                Log.info("Instating LIME explainer");
+                yield new LimeExplainer(limeConfig);
+
+                final int backgroundSize = configService.getQueueSize() + configService.getDiversitySize();
+                Log.debug("Requesting " + backgroundSize + " background samples from SHAP's streaming generator");
+                final List<PredictionInput> background = streamingGeneratorManager.getStreamingGenerator().generate(backgroundSize);
+                Log.debug("The background has a size of " + background.size());
+                final ShapConfig shapConfig = ShapConfig.builder().withRegularizer(5)
+                        .withLink(ShapConfig.LinkType.IDENTITY)
+                        .withBackground(background).build();
+                Log.info("Instantiating SHAP explainer");
+                yield new ShapKernelExplainer(shapConfig);
+            }
         };
     }
 }
