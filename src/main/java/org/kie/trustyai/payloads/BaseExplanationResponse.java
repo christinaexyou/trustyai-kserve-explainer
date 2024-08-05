@@ -1,22 +1,28 @@
 package org.kie.trustyai.payloads;
 
 import java.util.Date;
+import org.kie.trustyai.ConfigService;
+import org.kie.trustyai.ExplainerType;
+
+import jakarta.inject.Inject;
 
 public class BaseExplanationResponse {
+    @Inject
+    ConfigService configService;
 
     public final Date timestamp = new Date();
 
-    protected String type = "explanation";
+    public ExplainerType explainerType = configService.getExplainerType();
 
     public BaseExplanationResponse() {
     }
 
-    public String getType() {
-        return type;
+    public String getExplainerType() {
+        return explainerType.toString();
     }
 
-    public void setType(String type) {
-        this.type = type;
+    public void setType(ExplainerType explainerType) {
+        this.explainerType = explainerType;
     }
 
     public Date getTimestamp() {

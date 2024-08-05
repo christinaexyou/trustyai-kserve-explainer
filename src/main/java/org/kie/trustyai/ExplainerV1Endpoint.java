@@ -19,6 +19,7 @@ import org.apache.commons.math3.linear.RealVector;
 import org.kie.trustyai.connectors.kserve.v1.KServeV1HTTPPredictionProvider;
 import org.kie.trustyai.connectors.kserve.v1.KServeV1RequestPayload;
 import org.kie.trustyai.explainability.local.LocalExplainer;
+import org.kie.trustyai.explainability.local.lime.LimeExplainer;
 import org.kie.trustyai.explainability.model.Prediction;
 import org.kie.trustyai.explainability.model.PredictionInput;
 import org.kie.trustyai.explainability.model.PredictionOutput;
@@ -26,6 +27,7 @@ import org.kie.trustyai.explainability.model.PredictionProvider;
 import org.kie.trustyai.explainability.model.SaliencyResults;
 import org.kie.trustyai.explainability.model.SimplePrediction;
 import org.kie.trustyai.payloads.SaliencyExplanationResponse;
+import org.kie.trustyai.payloads.CombinedSaliencyResponse;
 
 @Path("/v1/models/{modelName}:explain")
 public class ExplainerV1Endpoint {
@@ -62,27 +64,40 @@ public class ExplainerV1Endpoint {
         final Prediction prediction = new SimplePrediction(input.get(0), output);
         final int dimensions = input.get(0).getFeatures().size();
 
-        if (configService.getExplainerType() == ExplainerType.SHAP || configService.getExplainerType() == ExplainerType.BOTH)  {
-            if (Objects.isNull(streamingGeneratorManager.getStreamingGenerator())) {
-                Log.info("Initializing SHAP's Streaming Background Generator with dimension " + dimensions);
-                streamingGeneratorManager.initialize(dimensions);
-            }
-            final double[] numericData = new double[dimensions];
-            for (int i = 0; i < dimensions; i++) {
-                numericData[i] = input.get(0).getFeatures().get(i).getValue().asNumber();
-            }
-            final RealVector vectorData = new ArrayRealVector(numericData);
-            streamingGeneratorManager.getStreamingGenerator().update(vectorData);
+        if (Objects.isNull(streamingGeneratorManager.getStreamingGenerator())) {
+            Log.info("Initializing SHAP's Streaming Background Generator with dimension " + dimensions);
+            streamingGeneratorManager.initialize(dimensions);
         }
+        final double[] numericData = new double[dimensions];
+        for (int i = 0; i < dimensions; i++) {
+            numericData[i] = input.get(0).getFeatures().get(i).getValue().asNumber();
+        }
+        final RealVector vectorData = new ArrayRealVector(numericData);
+        streamingGeneratorManager.getStreamingGenerator().update(vectorData);
+
+        // if (configService.getExplainerType() == ExplainerType.SHAP)  {
+        //     if (Objects.isNull(streamingGeneratorManager.getStreamingGenerator())) {
+        //         Log.info("Initializing SHAP's Streaming Background Generator with dimension " + dimensions);
+        //         streamingGeneratorManager.initialize(dimensions);
+        //     }
+        //     final double[] numericData = new double[dimensions];
+        //     for (int i = 0; i < dimensions; i++) {
+        //         numericData[i] = input.get(0).getFeatures().get(i).getValue().asNumber();
+        //     }
+        //     final RealVector vectorData = new ArrayRealVector(numericData);
+        //     streamingGeneratorManager.getStreamingGenerator().update(vectorData);
+        // }
 
         final ExplainerType explainerType = configService.getExplainerType();
 
         try {
-            final LocalExplainer<SaliencyResults> explainer = explainerFactory.getExplainer(explainerType);
+            final LocalExplainer<SaliencyResults> limeExplainer = explainerFactory.getExplainer(ExplainerType.LIME);
+            final LocalExplainer<SaliencyResults> shapExplainer = explainerFactory.getExplainer(ExplainerType.SHAP);
             Log.info("Sending explaining request to " + predictorURI);
-            final SaliencyResults results = explainer.explainAsync(prediction, provider).get();
-            final SaliencyExplanationResponse response = SaliencyExplanationResponse.fromSaliencyResults(results);
-
+            final SaliencyResults limeResults = limeExplainer.explainAsync(prediction, provider).get();
+            final SaliencyResults shapResults = shapExplainer.explainAsync(prediction, provider).get();
+            // combined saliency response
+            final CombinedSaliencyResponse response = CombinedSaliencyResponse.fromSaliencyResults(limeResults, shapResults);
             try {
                 return Response.ok(response, MediaType.APPLICATION_JSON).build();
             } catch (Exception e) {

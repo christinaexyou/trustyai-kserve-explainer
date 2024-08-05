@@ -44,8 +44,8 @@ public class ExplainerFactory {
                 Log.info("Instantiating SHAP explainer");
                 yield new ShapKernelExplainer(shapConfig);
             }
-            // default return both LIME and SHAP
-            default -> {
+
+            case BOTH -> {
                 final LimeConfig limeConfig = new LimeConfig()
                         .withNormalizeWeights(configService.getLimeNormalizeWeights())
                         .withSamples(configService.getLimeSamples())
@@ -64,6 +64,7 @@ public class ExplainerFactory {
                 Log.info("Instantiating SHAP explainer");
                 yield new ShapKernelExplainer(shapConfig);
             }
+            default -> throw new IllegalArgumentException("Unsupported explainer type: " + type);
         };
     }
 }

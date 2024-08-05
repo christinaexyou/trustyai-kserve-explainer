@@ -35,7 +35,7 @@ public class SaliencyExplanationResponse extends BaseExplanationResponse {
     public String toString() {
         return "SaliencyExplanationResponse{" +
                 "timestamp=" + timestamp +
-                ", type='" + type + '\'' +
+                ", type='" + explainerType + '\'' +
                 ", saliencies=" + saliencies +
                 '}';
     }
